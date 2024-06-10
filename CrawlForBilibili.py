@@ -7,13 +7,14 @@ import pandas as pd
 import requests
 #定义一个Person类，用来存储人的信息
 class Person:
-    def __init__(self, name, mid, likes="", views="", followings="", followers=""):
+    def __init__(self, name, mid, sign="", likes="", views="", followings="", followers=""):
         self.name = name
         self.mid = mid
         self.likes = likes
         self.views = views
         self.followings = followings
         self.followers = followers
+        self.sign = sign
 
 DATA_PATH_personal_information = "./personal_information.csv"
 DATA_PATH_social_network = "./social_network.csv"
@@ -155,6 +156,7 @@ def scrape_bilibili_followings(DATA_PATH,pagenumber,srcname,srcid,person_queue,d
         except:
             data = pd.DataFrame()  # 新建一个csv对象
             print("establish")
+        sign = []
         name = []
         id=[]
         sourcename=[]
@@ -186,16 +188,20 @@ def scrape_bilibili_followings(DATA_PATH,pagenumber,srcname,srcid,person_queue,d
         # 通过urlencode将参数拼接到url后面
         url = "https://api.bilibili.com/x/relation/followings?" + urlencode(params)
         res = requests.get(url, headers=headers)
-        data_json = json.loads(res.content)
+        try: 
+            data_json = json.loads(res.content)
+        except:
+            continue
         if "data" in data_json:
             for singlewb in data_json["data"]["list"]:
                 name.append(singlewb["uname"])
                 id.append(singlewb["mid"])
+                sign.append(singlewb["sign"])
                 sourcename.append(srcname)
                 sourceid.append(srcid)
                 print(singlewb["uname"],steps)
                 if singlewb["uname"] not in duplicate_check:
-                    person_queue.append(Person(singlewb["uname"],singlewb["mid"]))
+                    person_queue.append(Person(singlewb["uname"],singlewb["mid"],singlewb["sign"]))
                     duplicate_check.add(singlewb["uname"])
                 # print(singlewb["uname"])
        
@@ -205,6 +211,7 @@ def scrape_bilibili_followings(DATA_PATH,pagenumber,srcname,srcid,person_queue,d
                  "SourceName": sourcename,
                  "SourceID": sourceid,
                  "NAME": name,
+                 "SIGN": sign,
                  "ID": id
                  }
                 )
@@ -215,13 +222,12 @@ def scrape_bilibili_followings(DATA_PATH,pagenumber,srcname,srcid,person_queue,d
             time.sleep(random() * 2)  # 0~2秒随机sleep
         print("page:", page)
 
-def main():#主函数,bfs爬取社交网络
-    sourceperson = Person("刘守元", "1755748572")
+def main(sourceperson):#主函数,bfs爬取社交网络
     person_queue=[]
     person_queue.append(sourceperson)
     duplicate_check=set()
     duplicate_check.add(sourceperson.name)
-    nowstep=10
+    nowstep=100
     sourceperson.followers, sourceperson.followings = scrape_bilibili_personal_info(DATA_PATH_personal_information,sourceperson.mid,sourceperson.name)
     while len(person_queue )>0 and nowstep>=0:
         currentperson=person_queue.pop(0)
@@ -235,6 +241,21 @@ def main():#主函数,bfs爬取社交网络
         #print("duplicate check length:",len(duplicate_check))
         time.sleep(random() * 2)  # 0~2秒随机sleep
         nowstep-=1
+    if len(person_queue) > 0:
+        return 1
+    else:
+        return 0
 if __name__ == "__main__":
-    main()
+    sourceperson_list = []
+    sourceperson_list.append(Person("刘守元", "1755748572"))
+    sourceperson_list.append(Person("虫鸣声-Z","89627183"))
+    sourceperson_list.append(Person("哦吼我有病","187972385"))
+    sourceperson_list.append(Person("CSGO国服","48455786"))
+    sourceperson_list.append(Person("影视飓风","946974"))
+    cnt = 0
+    for i in range(5):
+        temp_cnt = main(sourceperson_list.pop(0))
+        cnt = cnt + temp_cnt
+    with open('island.txt','w') as f:
+        f.write(cnt)
     print("over")
